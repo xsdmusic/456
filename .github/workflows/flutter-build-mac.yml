@@ -146,12 +146,26 @@ jobs:
           fi
           ./build.py --flutter --hwcodec --unix-file-copy-paste ${{ matrix.job.extra-build-args }}
 
-      - name: Remove Hardened Runtime from the main executable
+      - name: Sign macOS executables without Hardened Runtime
         run: |
           APP="./flutter/build/macos/Build/Products/Release/RustDesk.app"
-          codesign --remove-signature "$APP/Contents/MacOS/RustDesk"
-          codesign --force --sign - "$APP/Contents/MacOS/RustDesk"
-          codesign -dv --verbose=4 "$APP/Contents/MacOS/RustDesk" 2>&1 | grep -E "flags|Signature|TeamIdentifier"
+
+          # Intel builds include an additional service executable. Sign it
+          # before the main app; Apple Silicon builds safely skip it if absent.
+          for EXECUTABLE in \
+            "$APP/Contents/MacOS/service" \
+            "$APP/Contents/MacOS/RustDesk"; do
+            [[ -f "$EXECUTABLE" ]] || continue
+
+            # Some builds produce an unsigned executable, so remove a prior
+            # signature only when one is present.
+            if codesign -dv --verbose=1 "$EXECUTABLE" >/dev/null 2>&1; then
+              codesign --remove-signature "$EXECUTABLE"
+            fi
+
+            codesign --force --sign - "$EXECUTABLE"
+            codesign -dv --verbose=4 "$EXECUTABLE" 2>&1 | grep -E "flags|Signature|TeamIdentifier"
+          done
 
       - name: Create DMG
         if: env.UPLOAD_ARTIFACT == 'true'
