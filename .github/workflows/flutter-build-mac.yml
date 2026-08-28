@@ -1,6 +1,16 @@
 name: Build RustDesk for macOS
 
 on:
+  workflow_dispatch:
+    inputs:
+      upload-artifact:
+        description: "Upload DMGs and publish them to the release"
+        type: boolean
+        default: true
+      upload-tag:
+        description: "Release tag"
+        type: string
+        default: "nightly"
   workflow_call:
     inputs:
       upload-artifact:
@@ -27,6 +37,8 @@ jobs:
     name: macOS (${{ matrix.job.arch }})
     needs: [generate-bridge]
     runs-on: ${{ matrix.job.os }}
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
