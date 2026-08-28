@@ -875,9 +875,31 @@ jobs:
           security unlock-keychain -p ${{ secrets.MACOS_P12_PASSWORD }} rustdesk.keychain
           # start sign the rustdesk.app and dmg
           rm -rf *.dmg || true
-          codesign --force -s ${{ secrets.MACOS_CODESIGN_IDENTITY }} --deep --strict ./flutter/build/macos/Build/Products/Release/RustDesk.app -vvv
+          # Remove the old RustDesk signature, especially hardened runtime
+codesign --remove-signature \
+  ./flutter/build/macos/Build/Products/Release/RustDesk.app/Contents/MacOS/RustDesk
+
+          # Re-sign only the RustDesk executable with ad-hoc signature
+codesign --force --sign - \
+  ./flutter/build/macos/Build/Products/Release/RustDesk.app/Contents/MacOS/RustDesk
+
+          # Verify RustDesk has no hardened runtime
+codesign -dv --verbose=4 \
+  ./flutter/build/macos/Build/Products/Release/RustDesk.app/Contents/MacOS/RustDesk 2>&1 | grep -E "flags|Signature|TeamIdentifier"
           create-dmg --icon "RustDesk.app" 200 190 --hide-extension "RustDesk.app" --window-size 800 400 --app-drop-link 600 185 rustdesk-${{ env.VERSION }}.dmg ./flutter/build/macos/Build/Products/Release/RustDesk.app
-          codesign --force -s ${{ secrets.MACOS_CODESIGN_IDENTITY }} --deep --strict rustdesk-${{ env.VERSION }}.dmg -vvv
+          # Remove the old RustDesk signature, especially hardened runtime
+codesign --remove-signature \
+  ./flutter/build/macos/Build/Products/Release/RustDesk.app/Contents/MacOS/RustDesk
+
+          # Re-sign only the RustDesk executable with ad-hoc signature
+codesign --force --sign - \
+  ./flutter/build/macos/Build/Products/Release/RustDesk.app/Contents/MacOS/RustDesk
+
+          # Verify RustDesk has no hardened runtime
+codesign -dv --verbose=4 \
+  ./flutter/build/macos/Build/Products/Release/RustDesk.app/Contents/MacOS/RustDesk 2>&1 | grep -E "flags|Signature|TeamIdentifier"
+
+create-dmg --icon "RustDesk.app" 200 190 --hide-extension "RustDesk.app" --window-size 800 400 --app-drop-link 600 185 rustdesk-${{ env.VERSION }}.dmg ./flutter/build/macos/Build/Products/Release/RustDesk.app
           # notarize the rustdesk-${{ env.VERSION }}.dmg
           rcodesign notary-submit --api-key-path ${{ github.workspace }}/rustdesk.json  --staple rustdesk-${{ env.VERSION }}.dmg
 
